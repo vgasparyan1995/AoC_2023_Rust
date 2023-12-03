@@ -64,7 +64,7 @@ fn part2(mtx: Vec<Vec<char>>) -> i32 {
                         .filter(|&(r, c)| get(&mtx, r, c) == '*'),
                 );
             } else if number != 0 {
-                for geer in geers.clone() {
+                for &geer in &geers {
                     numbers_per_geer
                         .entry(geer)
                         .or_insert(Vec::new())
@@ -74,7 +74,7 @@ fn part2(mtx: Vec<Vec<char>>) -> i32 {
                 number = 0;
             }
         }
-        for geer in geers.clone() {
+        for geer in geers {
             numbers_per_geer
                 .entry(geer)
                 .or_insert(Vec::new())
