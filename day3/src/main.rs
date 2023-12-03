@@ -15,7 +15,7 @@ fn ctoi(c: char) -> i32 {
 }
 
 fn part1(mtx: Vec<Vec<char>>) -> i32 {
-    let mut valid_numbers = Vec::new();
+    let mut total = 0;
     let num_rows = mtx.len() as i32;
     let num_cols = mtx[0].len() as i32;
     for row in 0..num_rows {
@@ -31,20 +31,17 @@ fn part1(mtx: Vec<Vec<char>>) -> i32 {
                     .any(|ch| ch != '.' && !ch.is_ascii_digit());
             } else if number != 0 {
                 if is_valid {
-                    valid_numbers.push(number);
-                } else {
-                    println!("invalid number: {}", number);
+                    total += number;
                 }
                 number = 0;
                 is_valid = false;
             }
         }
         if is_valid {
-            valid_numbers.push(number);
+            total += number;
         }
     }
-    println!("{valid_numbers:?}");
-    valid_numbers.iter().sum()
+    total
 }
 
 fn main() {
