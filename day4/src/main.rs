@@ -16,6 +16,27 @@ fn part1(input: Vec<(u32, HashSet<u32>, HashSet<u32>)>) -> u32 {
         .sum()
 }
 
+fn part2(input: Vec<(u32, HashSet<u32>, HashSet<u32>)>) -> u32 {
+    let mut cards = vec![1; input.len()];
+    input
+        .into_iter()
+        .map(|(id, winning, found)| {
+            let num_matches = found
+                .into_iter()
+                .filter(|found_number| winning.contains(found_number))
+                .count() as usize;
+            (id as usize, num_matches)
+        })
+        .for_each(|(id, num)| {
+            if num != 0 {
+                for idx in id..(id + num) {
+                    cards[idx] += cards[id - 1];
+                }
+            }
+        });
+    cards.into_iter().sum()
+}
+
 fn main() {
     let input: Vec<(u32, HashSet<u32>, HashSet<u32>)> = io::stdin()
         .lines()
@@ -37,5 +58,5 @@ fn main() {
             (id, winning_numbers, found_numbers)
         })
         .collect();
-    println!("{}", part1(input));
+    println!("{}", part2(input));
 }
