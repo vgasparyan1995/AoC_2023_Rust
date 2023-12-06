@@ -69,10 +69,23 @@ impl From<Lines<StdinLock<'static>>> for Input {
     }
 }
 
+fn partition_point((begin, end): (i64, i64), pred: impl Fn(i64) -> bool) -> i64 {
+    if begin == end {
+        return end;
+    }
+    let mid = begin + (end - begin) / 2;
+    if pred(mid) {
+        return partition_point((begin, mid), pred);
+    }
+    return partition_point((mid + 1, end), pred);
+}
+
 fn number_of_ways_to_win(race: Race) -> i64 {
-    let press_times: Vec<i64> = (0..=race.time / 2).collect();
-    let pp = press_times.partition_point(|press| press * (race.time - press) <= race.distance);
-    let num_ways_half = (press_times.len() - pp) as i64;
+    let half_time = race.time / 2;
+    let min_press_time = partition_point((0, half_time + 1), |press_time| {
+        press_time * (race.time - press_time) <= race.distance
+    });
+    let num_ways_half = half_time - min_press_time + 1;
     let result = if race.time % 2 == 0 {
         num_ways_half * 2 - 1
     } else {
