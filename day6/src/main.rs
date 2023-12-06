@@ -83,7 +83,7 @@ fn partition_point((begin, end): (i64, i64), pred: impl Fn(i64) -> bool) -> i64 
 fn number_of_ways_to_win(race: Race) -> i64 {
     let half_time = race.time / 2;
     let min_press_time = partition_point((0, half_time + 1), |press_time| {
-        press_time * (race.time - press_time) <= race.distance
+        press_time * (race.time - press_time) > race.distance
     });
     let num_ways_half = half_time - min_press_time + 1;
     let result = if race.time % 2 == 0 {
