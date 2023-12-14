@@ -133,38 +133,37 @@ fn print(mtx: &Mtx, boundary: &HashSet<Pos>, inside: &HashSet<Pos>) {
 }
 
 fn count_inside(mtx: &Mtx, boundary: HashSet<Pos>) -> usize {
+    let mut count = 0;
     let rows = mtx.len();
     let cols = mtx[0].len();
-    let mut horizontal = HashSet::new();
-    for r in 0..rows {
+
+    // Iterate over the diagonals starting from the rows - (r, 0)..(rows, rows - r).
+    for r0 in 0..rows {
         let mut inside = false;
-        for c in 0..cols {
-            let pos = Pos { r, c };
+        for r in r0..rows {
+            let pos = Pos { r, c: r - r0 };
             if boundary.contains(&pos) {
                 inside = !inside;
             } else if inside {
-                horizontal.insert(pos);
+                count += 1;
             }
         }
     }
-    let mut vertical = HashSet::new();
-    for c in 0..cols {
+
+    // Iterate over the diagonals starting from the cols - (9, c)..(cols - c, cols)
+    for c0 in 1..cols {
         let mut inside = false;
-        for r in 0..rows {
-            let pos = Pos { r, c };
+        for c in c0..cols {
+            let pos = Pos { r: c - c0, c };
             if boundary.contains(&pos) {
                 inside = !inside;
             } else if inside {
-                vertical.insert(pos);
+                count += 1;
             }
         }
     }
-    let inside_cells = horizontal
-        .intersection(&vertical)
-        .map(|&pos| pos)
-        .collect::<HashSet<_>>();
-    print(&mtx, &boundary, &inside_cells);
-    inside_cells.len()
+
+    count
 }
 
 fn part1(input: Input) -> usize {
