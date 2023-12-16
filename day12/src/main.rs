@@ -32,17 +32,6 @@ impl From<Lines<StdinLock<'_>>> for Input {
 }
 
 #[cached]
-fn choose(n: usize, k: usize) -> usize {
-    if k == 0 || k == n {
-        return 1;
-    }
-    if n - k < k {
-        return choose(n, n - k);
-    }
-    choose(n - 1, k - 1) + choose(n - 1, k)
-}
-
-#[cached]
 fn num_combinations(pattern: String, mut numbers: Vec<usize>) -> usize {
     if numbers.is_empty() {
         return if pattern.is_empty() || pattern.chars().all(|ch| ch == '.' || ch == '?') {
