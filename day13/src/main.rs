@@ -25,27 +25,37 @@ impl From<Lines<StdinLock<'_>>> for Input {
     }
 }
 
-fn cols_equal(
+fn cols_equal_error(
     row: &Row,
     left_range: Take<Rev<Range<usize>>>,
     right_range: Take<Range<usize>>,
-) -> bool {
+) -> usize {
     left_range
         .zip(right_range)
-        .all(|(left, right)| row[left] == row[right])
+        .filter(|(left, right)| row[*left] != row[*right])
+        .count()
 }
 
-fn rows_equal(
+fn rows_equal_error(
     map: &Map,
     top_range: Take<Rev<Range<usize>>>,
     bottom_range: Take<Range<usize>>,
-) -> bool {
+) -> usize {
     top_range
         .zip(bottom_range)
-        .all(|(top, bottom)| map[top] == map[bottom])
+        .map(|(top, bottom)| {
+            let top_row = &map[top];
+            let bottom_row = &map[bottom];
+            top_row
+                .iter()
+                .zip(bottom_row.iter())
+                .filter(|(top, bottom)| top != bottom)
+                .count()
+        })
+        .sum::<usize>()
 }
 
-fn find_vertical_symmetry(map: &Map) -> Option<usize> {
+fn find_vertical_symmetry(map: &Map, error: usize) -> Option<usize> {
     let col_max = map[0].len();
     (1..col_max)
         .filter(|&col| {
@@ -55,12 +65,14 @@ fn find_vertical_symmetry(map: &Map) -> Option<usize> {
             let right_range = right_range.take(common_length);
             let left_range = left_range.take(common_length);
             map.iter()
-                .all(|row| cols_equal(row, left_range.clone(), right_range.clone()))
+                .map(|row| cols_equal_error(row, left_range.clone(), right_range.clone()))
+                .sum::<usize>()
+                == error
         })
         .next()
 }
 
-fn find_horizontal_symmetry(map: &Map) -> Option<usize> {
+fn find_horizontal_symmetry(map: &Map, error: usize) -> Option<usize> {
     let row_max = map.len();
     (1..row_max)
         .filter(|&row| {
@@ -69,26 +81,30 @@ fn find_horizontal_symmetry(map: &Map) -> Option<usize> {
             let common_length = bottom_range.len().min(top_range.len());
             let bottom_range = bottom_range.take(common_length);
             let top_range = top_range.take(common_length);
-            rows_equal(map, top_range, bottom_range)
+            rows_equal_error(map, top_range, bottom_range) == error
         })
         .next()
 }
 
-fn solve(map: Map) -> usize {
-    if let Some(col) = find_vertical_symmetry(&map) {
+fn solve(map: Map, error: usize) -> usize {
+    if let Some(col) = find_vertical_symmetry(&map, error) {
         return col;
     }
-    if let Some(row) = find_horizontal_symmetry(&map) {
+    if let Some(row) = find_horizontal_symmetry(&map, error) {
         return row * 100;
     }
     panic!()
 }
 
 fn part1(input: Input) -> usize {
-    input.maps.into_iter().map(solve).sum()
+    input.maps.into_iter().map(|map| solve(map, 0)).sum()
+}
+
+fn part2(input: Input) -> usize {
+    input.maps.into_iter().map(|map| solve(map, 1)).sum()
 }
 
 fn main() {
     let input = Input::from(stdin().lines());
-    println!("{}", part1(input));
+    println!("{}", part2(input));
 }
