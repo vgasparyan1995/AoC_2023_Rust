@@ -111,7 +111,7 @@ fn check(part: Part, workflows: &HashMap<String, Workflow>, id: String) -> Strin
         .iter()
         .find_map(|Condition(range, dest)| {
             if range.is_none() {
-                return None;
+                return Some(dest.clone());
             }
             if match range.unwrap() {
                 Range::X(min, max) => part.x >= min && part.x <= max,
