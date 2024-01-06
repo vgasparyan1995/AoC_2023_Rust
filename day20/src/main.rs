@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     io::{stdin, Lines, StdinLock},
+    ops::{Add, AddAssign},
     println,
 };
 
@@ -26,7 +27,7 @@ struct Signal {
     pulse: Pulse,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum GateState {
     Broadcast,
     FlipFlop {
@@ -37,7 +38,7 @@ enum GateState {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Gate {
     state: GateState,
     outs: Vec<GateId>,
@@ -159,38 +160,104 @@ impl From<Lines<StdinLock<'_>>> for Input {
     }
 }
 
-fn broadcast_low(mut gates: HashMap<GateId, Gate>) -> (HashMap<GateId, Gate>, i64, i64) {
+fn broadcast_low<T>(
+    mut gates: HashMap<GateId, Gate>,
+    signal_reducer: impl Fn(&Signal) -> T,
+) -> (HashMap<GateId, Gate>, T)
+where
+    T: Default + AddAssign,
+{
     let mut signals = VecDeque::new();
     signals.push_back(Signal {
         sender: GateId::from("button"),
         receiver: GateId::from("broadcaster"),
         pulse: Pulse::LOW,
     });
-    let mut lows = 0;
-    let mut highs = 0;
+    let mut acc = T::default();
     while let Some(signal) = signals.pop_front() {
-        match signal.pulse {
-            Pulse::LOW => lows += 1,
-            Pulse::HIGH => highs += 1,
-        };
+        acc += signal_reducer(&signal);
         if let Some(gate) = gates.get_mut(&signal.receiver) {
             gate.receive(signal)
                 .into_iter()
                 .for_each(|signal| signals.push_back(signal));
         }
     }
-    (gates, lows, highs)
+    (gates, acc)
+}
+
+#[derive(Default)]
+struct LowHighPulseCount {
+    lows: i64,
+    highs: i64,
+}
+
+impl Add for LowHighPulseCount {
+    type Output = LowHighPulseCount;
+    fn add(self, rhs: Self) -> Self::Output {
+        LowHighPulseCount {
+            lows: self.lows + rhs.lows,
+            highs: self.highs + rhs.highs,
+        }
+    }
+}
+
+impl AddAssign for LowHighPulseCount {
+    fn add_assign(&mut self, rhs: Self) {
+        self.lows += rhs.lows;
+        self.highs += rhs.highs;
+    }
+}
+
+fn count_low_high_pulses(signal: &Signal) -> LowHighPulseCount {
+    match signal.pulse {
+        Pulse::LOW => LowHighPulseCount { lows: 1, highs: 0 },
+        Pulse::HIGH => LowHighPulseCount { lows: 0, highs: 1 },
+    }
 }
 
 fn part1(input: Input) -> i64 {
-    let (_, lows, highs) = (0..1000).fold((input.gates, 0, 0), |(gates, lows, highs), _| {
-        let (new_gates, new_lows, new_highs) = broadcast_low(gates);
-        (new_gates, lows + new_lows, highs + new_highs)
-    });
+    let (_, LowHighPulseCount { lows, highs }) = (0..1000).fold(
+        (input.gates, LowHighPulseCount::default()),
+        |(gates, lows_highs), _| {
+            let (new_gates, new_lows_highs) = broadcast_low(gates, count_low_high_pulses);
+            (new_gates, lows_highs + new_lows_highs)
+        },
+    );
     lows * highs
+}
+
+fn count_lows_to(dest: &str, signal: &Signal) -> i64 {
+    if signal.receiver == dest && signal.pulse == Pulse::LOW {
+        1
+    } else {
+        0
+    }
+}
+
+fn part2(input: Input) -> i64 {
+    // Observing the input it's visible that "rx" is a conj with 4 inputs, each of which is a conj
+    // with only 1 input. Finding the cycles yielding 1 to those will allow us to find the cycle
+    // yielding 1 to "rx" (the LCM of four).
+    vec!["jg", "kv", "mr", "rz"]
+        .into_iter()
+        .map(|dest| {
+            let mut gates = input.gates.clone();
+            let mut num_press = 0;
+            loop {
+                num_press += 1;
+                let (new_gates, num_lows_to_rx) =
+                    broadcast_low(gates, |signal| count_lows_to(dest, signal));
+                if num_lows_to_rx == 1 {
+                    return num_press;
+                }
+                gates = new_gates;
+            }
+        })
+        .reduce(|acc, n| num::integer::lcm(acc, n))
+        .unwrap()
 }
 
 fn main() {
     let input = Input::from(stdin().lines());
-    println!("{}", part1(input));
+    println!("{}", part2(input));
 }
