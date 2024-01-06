@@ -1,7 +1,7 @@
 use std::{
-    collections::HashSet,
     io::{Lines, StdinLock},
-    print, println,
+    ops::Add,
+    println, vec,
 };
 
 use itertools::Itertools;
@@ -10,9 +10,20 @@ type Row = Vec<char>;
 type Mtx = Vec<Row>;
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 struct Pos {
-    r: usize,
-    c: usize,
+    r: isize,
+    c: isize,
 }
+
+impl Add for Pos {
+    type Output = Pos;
+    fn add(self, rhs: Self) -> Self::Output {
+        Pos {
+            r: self.r + rhs.r,
+            c: self.c + rhs.c,
+        }
+    }
+}
+
 struct Input {
     mtx: Mtx,
 }
@@ -31,7 +42,10 @@ fn find(mtx: &Mtx, ch: char) -> Option<Pos> {
     let cols = mtx[0].len();
     (0..rows).cartesian_product(0..cols).find_map(|(r, c)| {
         if mtx[r][c] == ch {
-            Some(Pos { r, c })
+            Some(Pos {
+                r: r as isize,
+                c: c as isize,
+            })
         } else {
             None
         }
@@ -41,8 +55,8 @@ fn find(mtx: &Mtx, ch: char) -> Option<Pos> {
 fn neighbors(mtx: &Mtx, pos: Pos) -> Vec<Pos> {
     let rows = mtx.len();
     let cols = mtx[0].len();
-    let (r, c) = (pos.r as i32, pos.c as i32);
-    match mtx[pos.r][pos.c] {
+    let (r, c) = (pos.r as isize, pos.c as isize);
+    match mtx[pos.r as usize][pos.c as usize] {
         'S' => vec![(r, c + 1), (r, c - 1), (r + 1, c), (r - 1, c)],
         '-' => vec![(r, c + 1), (r, c - 1)],
         '|' => vec![(r + 1, c), (r - 1, c)],
@@ -54,11 +68,8 @@ fn neighbors(mtx: &Mtx, pos: Pos) -> Vec<Pos> {
     }
     .into_iter()
     .filter_map(|(r, c)| {
-        if r >= 0 && r < rows as i32 && c >= 0 && c < cols as i32 {
-            Some(Pos {
-                r: r as usize,
-                c: c as usize,
-            })
+        if r >= 0 && r < rows as isize && c >= 0 && c < cols as isize {
+            Some(Pos { r, c })
         } else {
             None
         }
@@ -84,86 +95,13 @@ fn traverse(mtx: &Mtx, mut curr: Pos, mut next: Pos, pred: fn(char) -> bool) -> 
             length += 1;
             curr = next;
             next = next_next;
-            if pred(mtx[next.r][next.c]) {
+            if pred(mtx[next.r as usize][next.c as usize]) {
                 return Some(length);
             }
         } else {
             return None;
         }
     }
-}
-
-fn traverse_visit(
-    mtx: &mut Mtx,
-    mut curr: Pos,
-    mut next: Pos,
-    pred: fn(char) -> bool,
-    mut visit: impl FnMut(char, Pos),
-) -> bool {
-    loop {
-        if let Some(next_next) = advance(&mtx, curr, next) {
-            curr = next;
-            next = next_next;
-            visit(mtx[curr.r][curr.c], curr);
-            if pred(mtx[next.r][next.c]) {
-                return true;
-            }
-        } else {
-            return false;
-        }
-    }
-}
-
-fn print(mtx: &Mtx, boundary: &HashSet<Pos>, inside: &HashSet<Pos>) {
-    let rows = mtx.len();
-    let cols = mtx[0].len();
-    for r in 0..rows {
-        for c in 0..cols {
-            let pos = Pos { r, c };
-            if boundary.contains(&pos) {
-                print!("{}", mtx[r][c])
-            } else if inside.contains(&pos) {
-                print!(".");
-            } else {
-                print!(":");
-            }
-        }
-        println!("");
-    }
-}
-
-fn count_inside(mtx: &Mtx, boundary: HashSet<Pos>) -> usize {
-    let mut count = 0;
-    let rows = mtx.len();
-    let cols = mtx[0].len();
-
-    // Iterate over the diagonals starting from the rows - (r, 0)..(rows, rows - r).
-    for r0 in 0..rows {
-        let mut inside = false;
-        for r in r0..rows {
-            let pos = Pos { r, c: r - r0 };
-            if boundary.contains(&pos) {
-                inside = !inside;
-            } else if inside {
-                count += 1;
-            }
-        }
-    }
-
-    // Iterate over the diagonals starting from the cols - (9, c)..(cols - c, cols)
-    for c0 in 1..cols {
-        let mut inside = false;
-        for c in c0..cols {
-            let pos = Pos { r: c - c0, c };
-            if boundary.contains(&pos) {
-                inside = !inside;
-            } else if inside {
-                count += 1;
-            }
-        }
-    }
-
-    count
 }
 
 fn part1(input: Input) -> usize {
@@ -177,22 +115,64 @@ fn part1(input: Input) -> usize {
     0
 }
 
-fn part2(mut input: Input) -> usize {
+fn traverse_visit(
+    mtx: &mut Mtx,
+    mut curr: Pos,
+    mut next: Pos,
+    pred: fn(char) -> bool,
+    mut visit: impl FnMut(char, Pos),
+) -> bool {
+    loop {
+        if let Some(next_next) = advance(&mtx, curr, next) {
+            curr = next;
+            next = next_next;
+            visit(mtx[curr.r as usize][curr.c as usize], curr);
+            if pred(mtx[next.r as usize][next.c as usize]) {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+}
+
+fn area(vs: Vec<Pos>) -> isize {
+    let length = vs.len();
+    if length < 3 {
+        return 0;
+    }
+    let mut s1 = 0;
+    let mut s2 = 0;
+    for i in 0..length - 1 {
+        s1 += vs[i].r * vs[i + 1].c;
+        s2 += vs[i].c * vs[i + 1].r;
+    }
+    s1 += vs[length - 1].r * vs[0].c;
+    s2 += vs[length - 1].c * vs[0].r;
+    (s1 - s2).abs() / 2
+}
+
+fn part2(mut input: Input) -> isize {
     let start = find(&input.mtx, 'S').unwrap();
     let neighbors = neighbors(&input.mtx, start);
     for next in neighbors {
-        let mut boundary: HashSet<Pos> = HashSet::new();
+        let mut polygon: Vec<Pos> = Vec::new();
         if traverse_visit(
             &mut input.mtx,
             start,
             next,
             |ch| ch == 'S',
             |_, pos| {
-                boundary.insert(pos);
+                polygon.push(pos);
             },
         ) {
-            boundary.insert(start);
-            return count_inside(&input.mtx, boundary);
+            polygon.push(start);
+            let boundary_points = polygon.len() as isize;
+            let area = area(polygon);
+            // A = i + b/2 - 1
+            // thus
+            // i = A - b/2 + 1
+            return area - boundary_points / 2 + 1;
         }
     }
     0
