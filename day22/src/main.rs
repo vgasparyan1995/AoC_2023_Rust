@@ -1,4 +1,5 @@
 use std::{
+    collections::{HashSet, VecDeque},
     io::{stdin, Lines, StdinLock},
     ops::Add,
     println,
@@ -71,7 +72,7 @@ struct Stacked {
     cuboids_over: Vec<isize>,
 }
 
-fn stack(cuboids: Vec<Cuboid>) -> Vec<Stacked> {
+fn xy_spread(cuboids: &Vec<Cuboid>) -> (usize, usize) {
     let (x_min, y_min, x_max, y_max) = cuboids
         .iter()
         .map(|c| (c.p0.x, c.p0.y, c.p1.x, c.p1.y))
@@ -81,10 +82,13 @@ fn stack(cuboids: Vec<Cuboid>) -> Vec<Stacked> {
                 (x_min.min(x0), y_min.min(y0), x_max.max(x1), y_max.max(y1))
             },
         );
-    let dx = x_max - x_min;
-    let dy = y_max - y_min;
-    assert!(dx > 0 && dy > 0);
-    let mut mask: Vec<Vec<isize>> = vec![vec![-1; dy as usize]; dx as usize];
+    ((x_max - x_min) as usize, (y_max - y_min) as usize)
+}
+
+fn stack(mut cuboids: Vec<Cuboid>) -> Vec<Stacked> {
+    cuboids.sort_by_key(|cuboid| cuboid.p0.z);
+    let (dx, dy) = xy_spread(&cuboids);
+    let mut mask: Vec<Vec<isize>> = vec![vec![-1; dy]; dx];
     let mut stacked_cuboids: Vec<Stacked> = Vec::new();
     for cuboid in cuboids {
         let curr_idx = stacked_cuboids.len() as isize;
@@ -139,8 +143,7 @@ fn stack(cuboids: Vec<Cuboid>) -> Vec<Stacked> {
     stacked_cuboids
 }
 
-fn part1(mut cuboids: Vec<Cuboid>) -> usize {
-    cuboids.sort_by_key(|cuboid| cuboid.p0.z);
+fn part1(cuboids: Vec<Cuboid>) -> usize {
     let stacked_cuboids = stack(cuboids);
     stacked_cuboids
         .iter()
@@ -152,7 +155,39 @@ fn part1(mut cuboids: Vec<Cuboid>) -> usize {
         .count()
 }
 
+fn remove(cuboid_idx: isize, stacked: &Vec<Stacked>) -> HashSet<isize> {
+    let mut removed = HashSet::new();
+    removed.insert(cuboid_idx);
+    let mut queue = VecDeque::new();
+    for &cuboid_over in stacked[cuboid_idx as usize].cuboids_over.iter() {
+        queue.push_back(cuboid_over);
+    }
+    while let Some(cuboid_idx) = queue.pop_front() {
+        let cuboid = &stacked[cuboid_idx as usize];
+        if cuboid
+            .cuboids_under
+            .iter()
+            .filter(|under| !removed.contains(under))
+            .count()
+            == 0
+        {
+            removed.insert(cuboid_idx);
+        }
+        for &over in cuboid.cuboids_over.iter() {
+            queue.push_back(over);
+        }
+    }
+    removed
+}
+
+fn part2(cuboids: Vec<Cuboid>) -> usize {
+    let stacked_cuboids = stack(cuboids);
+    (0..stacked_cuboids.len())
+        .map(|cuboid_idx| remove(cuboid_idx as isize, &stacked_cuboids).len() - 1)
+        .sum()
+}
+
 fn main() {
     let input = Input::from(stdin().lines());
-    println!("{}", part1(input.cuboids));
+    println!("{}", part2(input.cuboids));
 }
